@@ -1,5 +1,6 @@
 from .chickenpox import ChickenpoxDatasetLoader
 from .pedalme import PedalMeDatasetLoader
+from .productspace import ProductspaceDatasetLoader
 from .metr_la import METRLADatasetLoader
 from .pems_bay import PemsBayDatasetLoader
 from .wikimath import WikiMathsDatasetLoader
