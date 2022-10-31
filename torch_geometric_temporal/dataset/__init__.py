@@ -9,5 +9,6 @@ from .windmillmedium import WindmillOutputMediumDatasetLoader
 from .windmillsmall import WindmillOutputSmallDatasetLoader
 from .encovid import EnglandCovidDatasetLoader
 from .twitter_tennis import TwitterTennisDatasetLoader
+from .dynamic_productspace import DynamicProductspaceDatasetLoader
 from .montevideo_bus import MontevideoBusDatasetLoader
 from .mtm import MTMDatasetLoader
