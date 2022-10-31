@@ -41,8 +41,8 @@ for epoch in tqdm(range(200)):
     for time, snapshot in enumerate(train_dataset):
         y_hat, h, c = model(snapshot.x, snapshot.edge_index, snapshot.edge_attr, h, c)
         #print("snapshot.y", snapshot.y)
-        #cost_tmp = torch.mean((torch.abs(y_hat.T-snapshot.y))**2)
-        cost_tmp = torch.mean((torch.abs(y_hat.T-snapshot.y)))
+        cost_tmp = torch.mean((torch.abs(y_hat.T-snapshot.y))**2)
+        #cost_tmp = torch.mean((torch.abs(y_hat.T-snapshot.y)))
         #print("y_hat",y_hat.T)
         #print("snapshot.y",snapshot.y)
         print("MSE_tmp: {:.10f}".format(cost_tmp))
@@ -58,8 +58,8 @@ cost = 0
 h, c = None, None
 for time, snapshot in enumerate(test_dataset):
     y_hat, h, c = model(snapshot.x, snapshot.edge_index, snapshot.edge_attr, h, c)
-    #cost = cost + torch.mean((torch.abs(y_hat.T-snapshot.y))**2)
-    cost_tmp = torch.mean((torch.abs(y_hat.T-snapshot.y)))
+    cost_tmp = torch.mean((torch.abs(y_hat.T-snapshot.y))**2)
+    #cost_tmp = torch.mean((torch.abs(y_hat.T-snapshot.y)))
     cost = cost + cost_tmp
 cost = cost / (time+1)
 cost = cost.item()
