@@ -36,7 +36,7 @@ class ProductspaceDatasetLoader(object):
             for i in range(stacked_target.shape[0] - self.lags)
         ]
 
-    def get_dataset(self, lags: int = 2) -> StaticGraphTemporalSignal:
+    def get_dataset(self, lags: int = 1) -> StaticGraphTemporalSignal:
         """Returning the Product Space demand data iterator.
 
         Args types:

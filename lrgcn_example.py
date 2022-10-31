@@ -15,7 +15,7 @@ loader = DynamicProductspaceDatasetLoader()
 
 dataset = loader.get_dataset()
 
-train_dataset, test_dataset = temporal_signal_split(dataset, train_ratio=0.8)
+train_dataset, test_dataset = temporal_signal_split(dataset, train_ratio=0.2)
 
 class RecurrentGCN(torch.nn.Module):
     def __init__(self, node_features):
@@ -35,7 +35,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
 model.train()
 
-for epoch in tqdm(range(1000)):
+for epoch in tqdm(range(200)):
     cost = 0
     h, c = None, None
     for time, snapshot in enumerate(train_dataset):
@@ -84,4 +84,4 @@ line = y_hat.detach().numpy().tolist()
 line = [str(i[0]).zfill(6) for i in line] 
 Exports.append(line)
 
-pd.DataFrame(Exports).to_csv('predict_exports_FRA.csv', header=False, index=False)
+pd.DataFrame(Exports).to_csv('predict_exports.csv', header=False, index=False)
