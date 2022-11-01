@@ -15,6 +15,7 @@ from torch_geometric_temporal.nn.recurrent import LRGCN
 
 from torch_geometric_temporal.dataset import DynamicProductspaceDatasetLoader
 from torch_geometric_temporal.signal import temporal_signal_split
+product_list = pd.read_csv('./HS6_labels.csv', header=0, index_col=False, sep=';')
 
 loader = DynamicProductspaceDatasetLoader()
 
@@ -40,7 +41,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
 model.train()
 
-for epoch in tqdm(range(200)):
+for epoch in tqdm(range(20)):
     cost = 0
     h, c = None, None
     for time, snapshot in enumerate(train_dataset):
@@ -82,15 +83,28 @@ Exports.append(line)
 #pd.read_csv('hs_product_code.csv', header=0, index_col=0).values.tolist()
 
 for time, snapshot in enumerate(dataset):
-    line = snapshot.y.detach().numpy().tolist()
+    line = snapshot.x.detach().numpy().tolist()
+    line = [i[0] for i in line]
     #print("ligne", len(line))
     Exports.append(line)
+    #exporting node weights for gephi
+    gephi_df = product_list
+    gephi_df['weight'] = line
+    print("gephi_df",gephi_df)
+    pd.DataFrame(gephi_df).to_csv('./gephi/predict_exports_year_'+str(time+1995)+'.csv', header=True, index=False)
 # Prediction for 2021
 last_year = dataset[-1]
 h, c = None, None
 y_hat, h, c = model(snapshot.x, snapshot.edge_index, snapshot.edge_attr, h, c)
 line = y_hat.detach().numpy().tolist()
-line = [str(i[0]).zfill(6) for i in line] 
+line = [i[0] for i in line]
+#line = [str(i[0]).zfill(6) for i in line]
+#exporting node weights for gephi
+gephi_df = product_list
+gephi_df['weight'] = line
+print("gephi_df",gephi_df)
+pd.DataFrame(gephi_df).to_csv('./gephi/predict_exports_forecast.csv', header=True, index=False)
+
 Exports.append(line)
 
 pd.DataFrame(Exports).to_csv('predict_exports.csv', header=False, index=False)
@@ -115,7 +129,7 @@ sns.lineplot(data=preds, label="pred")
 sns.lineplot(data=labs, label="true")
 plt.show()
 '''
-
+'''
 year = 10
 
 print("y_hat_list", y_hat_list[0][0])
@@ -126,7 +140,6 @@ plt.figure(figsize=(20,5))
 
 #plt.plot(hs_product_code)
 sns.set_theme(style="whitegrid")
-product_list = pd.read_csv('./hs_product_code.csv', header=None, index_col=False)
 labels = [i.zfill(6) for i in product_list[1:-1][1].values]
 print("labels", len(labels))
 data = pd.DataFrame(y_list[0], labels, ["Actuals"])
@@ -136,3 +149,5 @@ data['Predictions'] = y_hat_list[0][0]
 sns.lineplot(data=data, linewidth=1, markers=False, dashes=True)
 plt.xticks(fontsize=8, rotation=45)
 plt.show()
+'''
+
