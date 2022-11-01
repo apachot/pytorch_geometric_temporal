@@ -54,8 +54,9 @@ class DynamicProductspaceDatasetLoader(object):
     """
 
     def __init__(
-        self, event_id="rg17", N=None, feature_mode=None, target_offset=1
+        self, country='FRA', event_id="rg17", N=None, feature_mode=None, target_offset=1
     ):
+        self.country = country
         self.N = N
         self.target_offset = target_offset
         if event_id in ["rg17", "uo17"]:
@@ -73,14 +74,10 @@ class DynamicProductspaceDatasetLoader(object):
         self._read_web_data()
 
     def _read_web_data(self):
-        json_name = './dataset/dynamic_productspace.json'
+        json_name = './dataset/dynamic_productspace_'+self.country+'.json'
         f = open (json_name, "r")
         self._dataset = json.loads(f.read())
         f.close()
-
-
-        # with open("/home/fberes/git/pytorch_geometric_temporal/dataset/"+fname) as f:
-        #    self._dataset = json.load(f)
 
     def _get_edges(self):
         edge_indices = []
@@ -106,7 +103,7 @@ class DynamicProductspaceDatasetLoader(object):
     def _get_features(self):
         self.features = []
         for time in range(self._dataset["time_periods"]):
-            X = np.array(self._dataset[str(time)]["X"])
+            X = np.array(self._dataset[str(time)]["X"][0:5040])
             print("X=",X)
             if self.N != None:
                 X = X[: self.N]
@@ -118,7 +115,7 @@ class DynamicProductspaceDatasetLoader(object):
         for time in range(T):
             # predict node degrees in advance
             snapshot_id = min(time + self.target_offset, T - 1)
-            y = np.array(self._dataset[str(snapshot_id)]["y"])
+            y = np.array(self._dataset[str(snapshot_id)]["y"][0:5040])
             if self.N != None:
                 y = y[: self.N]
             self.targets.append(y)

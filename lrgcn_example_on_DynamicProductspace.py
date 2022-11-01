@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+import os
 import pandas as pd
 import torch
 import torch.nn.functional as F
@@ -15,121 +16,121 @@ from torch_geometric_temporal.nn.recurrent import LRGCN
 
 from torch_geometric_temporal.dataset import DynamicProductspaceDatasetLoader
 from torch_geometric_temporal.signal import temporal_signal_split
-product_list = pd.read_csv('./HS6_labels.csv', header=0, index_col=False, sep=';')
 
-loader = DynamicProductspaceDatasetLoader()
+country_list = pd.read_csv('./country_list.csv', header=None, index_col=False).values
+country_list = [i[0] for i in country_list]
 
-dataset = loader.get_dataset()
+for country in country_list:
+    if not os.path.exists('./gephi/'+country):
+            os.makedirs('./gephi/'+country)
 
-train_dataset, test_dataset = temporal_signal_split(dataset, train_ratio=0.2)
+    product_list = pd.read_csv('./HS6_labels.csv', header=0, index_col=False, sep=';')[0:5040]
 
-class RecurrentGCN(torch.nn.Module):
-    def __init__(self, node_features):
-        super(RecurrentGCN, self).__init__()
-        self.recurrent = LRGCN(node_features, 16, 1, 1)
-        self.linear = torch.nn.Linear(16, 1)
+    loader = DynamicProductspaceDatasetLoader(country='FRA')
 
-    def forward(self, x, edge_index, edge_weight, h_0, c_0):
-        h_0, c_0 = self.recurrent(x, edge_index, edge_weight, h_0, c_0)
-        h = F.relu(h_0)
-        h = self.linear(h)
-        return h, h_0, c_0
+    dataset = loader.get_dataset()
+
+    train_dataset, test_dataset = temporal_signal_split(dataset, train_ratio=0.2)
+
+    class RecurrentGCN(torch.nn.Module):
+        def __init__(self, node_features):
+            super(RecurrentGCN, self).__init__()
+            self.recurrent = LRGCN(node_features, 16, 1, 1)
+            self.linear = torch.nn.Linear(16, 1)
+
+        def forward(self, x, edge_index, edge_weight, h_0, c_0):
+            h_0, c_0 = self.recurrent(x, edge_index, edge_weight, h_0, c_0)
+            h = F.relu(h_0)
+            h = self.linear(h)
+            return h, h_0, c_0
         
-model = RecurrentGCN(node_features = 1)
+    model = RecurrentGCN(node_features = 1)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
-model.train()
+    model.train()
 
-for epoch in tqdm(range(20)):
+    for epoch in tqdm(range(1000)):
+        cost = 0
+        h, c = None, None
+        for time, snapshot in enumerate(train_dataset):
+            y_hat, h, c = model(snapshot.x, snapshot.edge_index, snapshot.edge_attr, h, c)
+            #print("snapshot.y", snapshot.y)
+            cost_tmp = torch.mean((torch.abs(y_hat.T-snapshot.y))**2)
+            print(country,"y_hat",y_hat.T)
+            print(country,"snapshot.y",snapshot.y)
+            print(country,"MSE_tmp: {:.10f}".format(cost_tmp))
+            cost = cost + cost_tmp
+        cost = cost / (time+1)
+        cost.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+    
+    model.eval()
     cost = 0
     h, c = None, None
-    for time, snapshot in enumerate(train_dataset):
+    y_list, y_hat_list = [], []
+    for time, snapshot in enumerate(test_dataset):
         y_hat, h, c = model(snapshot.x, snapshot.edge_index, snapshot.edge_attr, h, c)
-        #print("snapshot.y", snapshot.y)
         cost_tmp = torch.mean((torch.abs(y_hat.T-snapshot.y))**2)
-        #cost_tmp = torch.mean((torch.abs(y_hat.T-snapshot.y)))
-        #print("y_hat",y_hat.T)
-        #print("snapshot.y",snapshot.y)
-        print("MSE_tmp: {:.10f}".format(cost_tmp))
         cost = cost + cost_tmp
-        #cost = cost + torch.nn.MSELoss(y_hat.T, snapshot.y)
+        # Store for analysis below
+        y_list.append(snapshot.y.detach().cpu().numpy())
+        y_hat_list.append(y_hat.T.detach().cpu().numpy())
     cost = cost / (time+1)
-    cost.backward()
-    optimizer.step()
-    optimizer.zero_grad()
-    
-model.eval()
-cost = 0
-h, c = None, None
-y_list, y_hat_list = [], []
-for time, snapshot in enumerate(test_dataset):
-    y_hat, h, c = model(snapshot.x, snapshot.edge_index, snapshot.edge_attr, h, c)
-    cost_tmp = torch.mean((torch.abs(y_hat.T-snapshot.y))**2)
-    #cost_tmp = torch.mean((torch.abs(y_hat.T-snapshot.y)))
-    cost = cost + cost_tmp
-    # Store for analysis below
-    y_list.append(snapshot.y.detach().cpu().numpy())
-    y_hat_list.append(y_hat.T.detach().cpu().numpy())
-cost = cost / (time+1)
-cost = cost.item()
-print("MSE: {:.10f}".format(cost))
+    cost = cost.item()
+    print("MSE: {:.10f}".format(cost))
 
-
-Exports = []
-line = pd.read_csv('hs_product_code.csv', header=0, index_col=0).to_numpy().tolist()
-line = [str(i[0]).zfill(6) for i in line] 
-Exports.append(line)
-#pd.read_csv('hs_product_code.csv', header=0, index_col=0).values.tolist()
-
-for time, snapshot in enumerate(dataset):
-    line = snapshot.x.detach().numpy().tolist()
-    line = [i[0] for i in line]
-    #print("ligne", len(line))
+    Exports = []
+    line = pd.read_csv('hs_product_code.csv', header=0, index_col=0)[0:5040].to_numpy().tolist()
+    line = [str(i[0]).zfill(6) for i in line] 
     Exports.append(line)
+    #pd.read_csv('hs_product_code.csv', header=0, index_col=0).values.tolist()
+
+    for time, snapshot in enumerate(dataset):
+        line = snapshot.x.detach().numpy().tolist()
+        line = [i[0] for i in line]
+        #print("ligne", len(line))
+        Exports.append(line)
+        #exporting node weights for gephi
+        gephi_df = product_list
+        gephi_df['weight'] = line
+        print(country,"gephi_df",gephi_df)
+        pd.DataFrame(gephi_df).to_csv('./gephi/'+country+'/predict_exports_'+country+'_year_'+str(time+1995)+'.csv', header=True, index=False)
+    # Prediction for 2021
+    last_year = dataset[-1]
+    h, c = None, None
+    y_hat, h, c = model(snapshot.x, snapshot.edge_index, snapshot.edge_attr, h, c)
+    line = y_hat.detach().numpy().tolist()
+    line = [i[0] for i in line]
+    #line = [str(i[0]).zfill(6) for i in line]
     #exporting node weights for gephi
     gephi_df = product_list
     gephi_df['weight'] = line
-    print("gephi_df",gephi_df)
-    pd.DataFrame(gephi_df).to_csv('./gephi/predict_exports_year_'+str(time+1995)+'.csv', header=True, index=False)
-# Prediction for 2021
-last_year = dataset[-1]
-h, c = None, None
-y_hat, h, c = model(snapshot.x, snapshot.edge_index, snapshot.edge_attr, h, c)
-line = y_hat.detach().numpy().tolist()
-line = [i[0] for i in line]
-#line = [str(i[0]).zfill(6) for i in line]
-#exporting node weights for gephi
-gephi_df = product_list
-gephi_df['weight'] = line
-print("gephi_df",gephi_df)
-pd.DataFrame(gephi_df).to_csv('./gephi/predict_exports_forecast.csv', header=True, index=False)
-
-Exports.append(line)
-
-pd.DataFrame(Exports).to_csv('predict_exports.csv', header=False, index=False)
-print("y_hat_list", y_hat_list)
-print("y_list", y_list)
-
-
-'''
-product = 1
+    print(country,"gephi_df",gephi_df)
+    pd.DataFrame(gephi_df).to_csv('./gephi/'+country+'/predict_exports_'+country+'_year_2021_forecast.csv', header=True, index=False)
 
 
 
-preds = np.asarray([pred[0][product] for pred in y_hat_list])
-print("preds", preds)
-labs  = np.asarray([label[product] for label in y_list])
-print("Data points:,", preds.shape)
 
-plt.figure(figsize=(20,5))
+    '''
+    product = 1
 
-#plt.plot(hs_product_code)
-sns.lineplot(data=preds, label="pred")
-sns.lineplot(data=labs, label="true")
-plt.show()
-'''
-'''
+
+
+    preds = np.asarray([pred[0][product] for pred in y_hat_list])
+    print("preds", preds)
+    labs  = np.asarray([label[product] for label in y_list])
+    print("Data points:,", preds.shape)
+
+    plt.figure(figsize=(20,5))
+
+    #plt.plot(hs_product_code)
+    sns.lineplot(data=preds, label="pred")
+    sns.lineplot(data=labs, label="true")
+    plt.show()
+    '''
+    '''
 year = 10
 
 print("y_hat_list", y_hat_list[0][0])
